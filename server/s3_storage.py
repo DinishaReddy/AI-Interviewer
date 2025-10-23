@@ -84,26 +84,15 @@ def download_from_s3(s3_key: str) -> str:
         return None
 
 def save_extracted_data(session_id: str, data_type: str, content: dict) -> str:
-    """Save extracted data to both local and S3"""
-    # Local storage (fallback)
+    """Fast local save only"""
+    # Immediate local save
     local_path = f"extracted_files/{data_type}_{session_id}.json"
     os.makedirs("extracted_files", exist_ok=True)
     
-    try:
-        with open(local_path, 'w', encoding='utf-8') as f:
-            json.dump(content, f, ensure_ascii=False, indent=2)
-        logger.info(f"Saved locally: {local_path}")
-    except Exception as e:
-        logger.exception(f"Failed to save locally: {e}")
+    with open(local_path, 'w') as f:
+        json.dump(content, f)
     
-    # S3 storage
-    s3_key = f"sessions/{session_id}/{data_type}.json"
-    json_content = json.dumps(content, ensure_ascii=False, indent=2)
-    
-    if upload_to_s3(json_content, s3_key):
-        return f"s3://{S3_BUCKET}/{s3_key}"
-    else:
-        return local_path
+    return local_path
 
 def load_extracted_data(session_id: str, data_type: str) -> dict:
     """Load extracted data from S3 or local fallback"""

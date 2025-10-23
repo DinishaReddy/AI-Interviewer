@@ -1,4 +1,4 @@
-# AI Interview Coach
+ # AI Interview Coach
 
 A modern, responsive React application for uploading resumes and job descriptions to start AI-powered interview analysis.
 

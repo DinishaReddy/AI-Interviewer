@@ -19,6 +19,9 @@ const InterviewPage = () => {
   const [selectedVoice, setSelectedVoice] = useState('Joanna');
   const [showVoiceSettings, setShowVoiceSettings] = useState(false);
   const [audioAutoPlayed, setAudioAutoPlayed] = useState(false);
+  const [mediaRecorder, setMediaRecorder] = useState(null);
+  const [audioChunks, setAudioChunks] = useState([]);
+  const [isTranscribing, setIsTranscribing] = useState(false);
   const audioRef = useRef(null);
 
   const BACKEND_URL = 'http://localhost:8000';
@@ -107,10 +110,118 @@ const InterviewPage = () => {
       setAudioAutoPlayed(false);
     }
   };
+  const [feedback, setFeedback] = useState(null);
+  const [chatHistory, setChatHistory] = useState({});
+  const [transcript, setTranscript] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [response, setResponse] = useState("");
+  const handleListen = () => {
+    setIsRecording((prevState) => !prevState);
+    const SpeechRecognition =
+      window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    recognition.lang = "en-US";
+    recognition.onstart = () => {
+      setIsRecording(true);
+    };
+    recognition.onend = () => {
+      setIsRecording(false);
+    };
+    recognition.onerror = (event) => {
+      setResponse(`Speech recognition error: ${event.error}`);
+      setIsRecording(false);
+    };
+    recognition.onresult = async (event) => {
+      const userInput = event.results[0][0].transcript; // this is how you grab the transcript
+      setTranscript(userInput);
+      setLoading(true);
+      try {
+        setAnswer(userInput);
+        console.log(userInput);
+      } catch (err) {
+        setResponse("Sorry, I couldn't process that request.");
+      } finally {
+        setLoading(false);
+        setIsRecording(false);
+      }
+    };
+    recognition.start();
+  };
 
-  const toggleRecording = () => {
-    setIsRecording(!isRecording);
-    // Voice recording implementation would go here
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream, {
+        mimeType: 'audio/webm;codecs=opus'
+      });
+      
+      const chunks = [];
+      
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          chunks.push(event.data);
+        }
+      };
+      
+      recorder.onstop = async () => {
+        const audioBlob = new Blob(chunks, { type: 'audio/webm' });
+        await transcribeAudio(audioBlob);
+        
+        // Stop all tracks to release microphone
+        stream.getTracks().forEach(track => track.stop());
+      };
+      
+      recorder.start();
+      setMediaRecorder(recorder);
+      setAudioChunks(chunks);
+      setIsRecording(true);
+      
+    } catch (error) {
+      console.error('Error accessing microphone:', error);
+      alert('Microphone access denied. Please allow microphone access or type your answer.');
+    }
+  };
+  
+  const stopRecording = () => {
+    if (mediaRecorder && isRecording) {
+      mediaRecorder.stop();
+      setIsRecording(false);
+      setMediaRecorder(null);
+    }
+  };
+  
+  const transcribeAudio = async (audioBlob) => {
+    setIsTranscribing(true);
+    setAnswer('🎤 Processing your speech...');
+    
+    try {
+      const formData = new FormData();
+      formData.append('file', audioBlob, 'recording.webm');
+      formData.append('session_id', sessionId);
+      
+      const response = await fetch(`${BACKEND_URL}/transcribe-audio`, {
+        method: 'POST',
+        body: formData
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        
+        if (result.status === 'success') {
+          setAnswer(result.transcription);
+        } else {
+          setAnswer(`⚠️ ${result.transcription}`);
+        }
+      } else {
+        setAnswer('❌ Transcription failed. Please type your answer below.');
+      }
+      
+    } catch (error) {
+      console.error('Transcription error:', error);
+      setAnswer('❌ Network error. Please type your answer below.');
+    } finally {
+      setIsTranscribing(false);
+    }
   };
 
   const replayWithVoice = async (voiceId) => {
@@ -437,31 +548,60 @@ const InterviewPage = () => {
 
             {/* Answer Input */}
             <div className="space-y-4">
-              <textarea
-                value={answer}
-                onChange={(e) => setAnswer(e.target.value)}
-                placeholder="Type your answer here..."
-                className="w-full h-40 p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                disabled={showAnalysis}
-              />
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium text-gray-700">
+                    Your Answer:
+                  </label>
+                  <div className="text-xs text-gray-500">
+                    🎤 Speak or ⌨️ Type your response
+                  </div>
+                </div>
+                
+                <textarea
+                  value={answer}
+                  onChange={(e) => setAnswer(e.target.value)}
+                  placeholder="Click 'Voice Answer' to speak, or type your answer here..."
+                  className="w-full h-40 p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                  disabled={showAnalysis || isRecording || isTranscribing}
+                />
+                
+                {isRecording && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                    <div className="flex items-center text-red-700">
+                      <div className="w-3 h-3 bg-red-500 rounded-full animate-ping mr-2"></div>
+                      <span className="font-medium">Recording in progress... Speak clearly and click 'Stop Recording' when done.</span>
+                    </div>
+                  </div>
+                )}
+                
+                {isTranscribing && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <div className="flex items-center text-blue-700">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+                      <span className="font-medium">Converting speech to text...</span>
+                    </div>
+                  </div>
+                )}
+              </div>
               
               <div className="flex space-x-3">
                 <button
-                  onClick={toggleRecording}
-                  className={`flex items-center px-4 py-2 rounded-lg font-medium ${
+                  onClick={handleListen}
+                  className={`flex items-center px-4 py-2 rounded-lg font-medium transition-all ${
                     isRecording 
-                      ? 'bg-red-600 text-white' 
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      ? 'bg-red-600 text-white animate-pulse' 
+                      : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
                   }`}
-                  disabled={showAnalysis}
+                  disabled={showAnalysis || isTranscribing}
                 >
                   {isRecording ? <MicOff className="h-4 w-4 mr-2" /> : <Mic className="h-4 w-4 mr-2" />}
-                  {isRecording ? 'Stop Recording' : 'Voice Answer'}
+                  {isRecording ? '🔴 Stop Recording' : '🎤 Voice Answer'}
                 </button>
                 
                 <button
                   onClick={submitAnswer}
-                  disabled={!answer.trim() || isLoading || showAnalysis}
+                  disabled={!answer.trim() || isLoading || showAnalysis || isRecording || isTranscribing}
                   className="flex items-center px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
                 >
                   <Send className="h-4 w-4 mr-2" />
