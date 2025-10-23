@@ -1,29 +1,79 @@
-# ---- Node ----
-node_modules/
-frontend/node_modules/
-frontend/dist/
-build/
-dist/
-
-# ---- Python ----
-.venv/
-venv/
-__pycache__/
-*.pyc
-*.pyo
-
-# ---- Env & Secrets (CRITICAL) ----
+# Environment variables and secrets
 .env
-.env.*
+.env.local
+.env.production
 *.env
-*.pem
-*.key
-*.crt
-aws_credentials*
-# if you ever copy ~/.aws into the repo by mistake, ignore it:
-.aws/
 
-# ---- OS/Editor ----
-.DS_Store
+# AWS credentials
+.aws/
+aws-credentials.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# React build
+frontend/build/
+frontend/dist/
+
+# Logs
+*.log
+logs/
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Temporary files
+extracted_files/
+temp/
+tmp/
+*.tmp
+
+# IDE
 .vscode/
 .idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local storage
+local_storage/
+uploads/
