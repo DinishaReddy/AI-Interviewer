@@ -18,21 +18,43 @@ try:
     # Get AWS region from environment or use default
     aws_region = os.getenv('AWS_DEFAULT_REGION', 'us-west-2')
     
-    # Try to use AWS profile for SSO
-    profile_name = os.getenv('AWS_PROFILE', 'cpisb_IsbUsersPS-039384756194')
+    # Get AWS credentials from environment
+    aws_access_key = os.getenv('AWS_ACCESS_KEY_ID')
+    aws_secret_key = os.getenv('AWS_SECRET_ACCESS_KEY')
+    aws_session_token = os.getenv('AWS_SESSION_TOKEN')
+    profile_name = os.getenv('AWS_PROFILE')
     
-    try:
-        # Try with profile first (for SSO)
+    if profile_name:
+        # Use AWS profile for SSO
         session = boto3.Session(profile_name=profile_name)
         s3_client = session.client('s3', region_name=aws_region)
         logger.info(f"S3 client initialized with profile: {profile_name}")
-    except Exception:
+    elif aws_access_key and aws_secret_key:
+        # Use explicit credentials (with optional session token)
+        if aws_session_token:
+            s3_client = boto3.client(
+                's3',
+                region_name=aws_region,
+                aws_access_key_id=aws_access_key,
+                aws_secret_access_key=aws_secret_key,
+                aws_session_token=aws_session_token
+            )
+            logger.info("S3 client initialized with session token credentials")
+        else:
+            s3_client = boto3.client(
+                's3',
+                region_name=aws_region,
+                aws_access_key_id=aws_access_key,
+                aws_secret_access_key=aws_secret_key
+            )
+            logger.info("S3 client initialized with access key credentials")
+    else:
         # Fallback to default credentials
         s3_client = boto3.client('s3', region_name=aws_region)
-        logger.info(f"S3 client initialized with default credentials")
+        logger.info("S3 client initialized with default credentials")
     
     # Get S3 bucket name from environment or use default
-    S3_BUCKET = os.getenv('S3_BUCKET_NAME', 'ai-interviewer-data-bucket')
+    S3_BUCKET = os.getenv('S3_BUCKET_NAME', 'ai-interviewer-posture-photos')
     
     logger.info(f"S3 client initialized for region: {aws_region}, bucket: {S3_BUCKET}")
 except Exception as e:
@@ -69,6 +91,28 @@ def upload_resume_file_to_s3(session_id: str, file_content: bytes, filename: str
         return f"s3://{S3_BUCKET}/{s3_key}"
     return None
 
+def upload_file_to_s3(file_content: bytes, s3_key: str, content_type: str) -> str:
+    """Upload any file to S3 and return public URL"""
+    if not s3_client:
+        raise Exception("S3 client not available")
+    
+    try:
+        s3_client.put_object(
+            Bucket=S3_BUCKET,
+            Key=s3_key,
+            Body=file_content,
+            ContentType=content_type
+        )
+        
+        # Return S3 URL
+        s3_url = f"s3://{S3_BUCKET}/{s3_key}"
+        logger.info(f"Uploaded file to S3: {s3_url}")
+        return s3_url
+        
+    except Exception as e:
+        logger.exception(f"Failed to upload file to S3: {e}")
+        raise Exception(f"S3 upload failed: {str(e)}")
+
 def download_from_s3(s3_key: str) -> str:
     """Download content from S3"""
     if not s3_client:
@@ -84,13 +128,20 @@ def download_from_s3(s3_key: str) -> str:
         return None
 
 def save_extracted_data(session_id: str, data_type: str, content: dict) -> str:
-    """Fast local save only"""
+    """Fast local save with S3 backup"""
     # Immediate local save
     local_path = f"extracted_files/{data_type}_{session_id}.json"
     os.makedirs("extracted_files", exist_ok=True)
     
     with open(local_path, 'w') as f:
         json.dump(content, f)
+    
+    # Background S3 upload
+    try:
+        s3_key = f"sessions/{session_id}/{data_type}.json"
+        upload_to_s3(json.dumps(content), s3_key, 'application/json')
+    except Exception as e:
+        logger.warning(f"S3 backup failed: {e}")
     
     return local_path
 

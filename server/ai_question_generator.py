@@ -77,7 +77,7 @@ class AIQuestionGenerator:
                 
                 # Validate and format questions
                 formatted_questions = []
-                for i, q in enumerate(questions[:8]):  # Limit to 8 questions
+                for i, q in enumerate(questions[:4]):  # Limit to 4 questions
                     formatted_questions.append({
                         "id": i + 1,
                         "question": q.get("question", "").strip(),
@@ -99,17 +99,16 @@ class AIQuestionGenerator:
         jd_section = f"JOB DESCRIPTION:\n{jd_text[:1000]}" if jd_text else ""
         resume_section = f"RESUME:\n{resume_text[:2000]}"
         
-        prompt = f"""Based on the following resume{' and job description' if jd_text else ''}, generate 8 diverse interview questions that would effectively evaluate this candidate.
+        prompt = f"""Based on the following resume{' and job description' if jd_text else ''}, generate 4 diverse interview questions that would effectively evaluate this candidate.
 
 {resume_section}
 
 {jd_section}
 
 Generate questions that cover:
-1. Technical skills and experience (2-3 questions)
-2. Behavioral/situational scenarios (2-3 questions) 
-3. Problem-solving and critical thinking (1-2 questions)
-4. Cultural fit and motivation (1-2 questions)
+1. Technical skills and experience (2 questions)
+2. Behavioral/situational scenarios (1 question) 
+3. Problem-solving or cultural fit (1 question)
 
 Return ONLY a JSON array in this exact format:
 [
@@ -224,9 +223,9 @@ Make questions specific to the candidate's background and the role requirements.
             }
         ]
         
-        # Combine and limit to 8 questions
+        # Combine and limit to 5 questions (1 intro + 4 scored)
         all_questions = questions + tech_questions + behavioral_questions
-        return all_questions[:8]
+        return all_questions[:5]
 
 # Global instance
 ai_question_generator = AIQuestionGenerator()

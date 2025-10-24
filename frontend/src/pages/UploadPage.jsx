@@ -45,13 +45,13 @@ const UploadPage = () => {
     setUploadProgress(0);
     const interval = setInterval(() => {
       setUploadProgress(prev => {
-        if (prev >= 90) {
+        if (prev >= 85) {
           clearInterval(interval);
-          return 90;
+          return 85;
         }
-        return prev + Math.random() * 15;
+        return prev + Math.random() * 10;
       });
-    }, 200);
+    }, 150);
     return interval;
   };
 
@@ -79,13 +79,17 @@ const UploadPage = () => {
         formData.append('jdText', jdText.trim());
       }
 
-      // Send POST request to FastAPI backend
+      // Send POST request with timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      
       const response = await fetch(UPLOAD_ENDPOINT, {
         method: 'POST',
-        body: formData,  // Send form data with files
+        body: formData,
+        signal: controller.signal
       });
-
-      // Stop progress simulation
+      
+      clearTimeout(timeoutId);
       clearInterval(progressInterval);
       setUploadProgress(100);
 
@@ -109,8 +113,14 @@ const UploadPage = () => {
       // Handle any errors during upload
       clearInterval(progressInterval);
       setUploadProgress(0);
-      showToast('error', '❌ Extraction failed');
-      setResponseMessage(`Error: ${error.message}`);
+      
+      if (error.name === 'AbortError') {
+        showToast('error', '❌ Upload timeout - please try again');
+        setResponseMessage('Error: Upload timed out after 30 seconds');
+      } else {
+        showToast('error', '❌ Extraction failed');
+        setResponseMessage(`Error: ${error.message}`);
+      }
     } finally {
       // Always reset loading state
       setIsUploading(false);
@@ -243,10 +253,10 @@ const UploadPage = () => {
               </button>
             ) : (
               <button
-                onClick={() => navigate('/interview', { state: { sessionId } })}
+                onClick={() => navigate('/mode-selection', { state: { sessionId } })}
                 className="w-full py-4 px-4 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium text-lg transition-all duration-200 ease-in-out hover:shadow-lg transform hover:-translate-y-0.5"
               >
-                🎤 Start AI Interview with Voice
+                🎤 Choose Interview Mode
               </button>
             )}
 
