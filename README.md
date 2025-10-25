@@ -7,6 +7,7 @@ An AI-powered interview system that generates personalized questions based on re
 - 📄 **Resume & JD Processing**: Upload PDF/DOCX files or paste text
 - 🤖 **AI Question Generation**: Uses Amazon Bedrock (Claude 3 Sonnet) for personalized questions
 - 🎤 **Text-to-Speech**: AWS Polly integration with neural voices
+- 🗣️ **Speech-to-Text:** AWS Transcribe converts spoken answers into text
 - 💾 **Dual Storage**: AWS S3 + local fallback for reliability
 - 🎯 **Smart Fallback**: Intelligent static questions when AI is unavailable
 - 🔊 **Audio Controls**: Auto-play, manual controls, and voice selection
@@ -17,6 +18,7 @@ An AI-powered interview system that generates personalized questions based on re
 - **File Processing**: PyMuPDF, python-docx for text extraction
 - **AI Generation**: Amazon Bedrock with Claude 3 Sonnet
 - **Text-to-Speech**: AWS Polly with neural engine
+- **Speech-to-text**: AWS Transcribe for converting responses to text
 - **Storage**: AWS S3 with local backup
 - **Authentication**: AWS SSO profile-based
 
